@@ -10,22 +10,20 @@ namespace REstate.Engine
     {
         string MachineId { get; }
 
-        Task<InstanceRecord> FireAsync(
-            Trigger trigger, 
-            string contentType,
+        Task<Machine> FireAsync(
+            Trigger trigger,
             string payload, 
             CancellationToken cancellationToken);
 
-        Task<InstanceRecord> FireAsync(
+        Task<Machine> FireAsync(
             Trigger trigger,
-            string contentType, 
             string payload, 
             Guid? lastCommitTag,
             CancellationToken cancellationToken);
 
         Task<bool> IsInStateAsync(State state, CancellationToken cancellationToken);
 
-        Task<InstanceRecord> GetCurrentStateAsync(CancellationToken cancellationToken);
+        Task<Machine> GetCurrentStateAsync(CancellationToken cancellationToken);
 
         Task<ICollection<Trigger>> GetPermittedTriggersAsync(CancellationToken cancellationToken);
     }

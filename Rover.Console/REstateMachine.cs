@@ -14,14 +14,14 @@ namespace REstate.Engine
     {
         private readonly IConnectorFactoryResolver _connectorFactoryResolver;
         private readonly IRepositoryContextFactory _repositoryContextFactory;
-        private readonly DotGraphCartographer _cartographer;
+        private readonly ICartographer _cartographer;
 
         protected IDictionary<State, StateConfiguration> StateMappings { get; }
 
         public REstateMachine(
             IConnectorFactoryResolver connectorFactoryResolver,
             IRepositoryContextFactory repositoryContextFactory,
-            DotGraphCartographer cartographer,
+            ICartographer cartographer,
             string machineId,
             IDictionary<State, StateConfiguration> stateMappings)
         {
@@ -35,17 +35,15 @@ namespace REstate.Engine
         }
         public string MachineId { get; }
 
-        public Task<InstanceRecord> FireAsync(
-            Trigger trigger, 
-            string contentType, string payload, 
+        public Task<Machine> FireAsync(
+            Trigger trigger, string payload, 
             CancellationToken cancellationToken)
         {
-            return FireAsync(trigger, contentType, payload, null, cancellationToken);
+            return FireAsync(trigger, payload, null, cancellationToken);
         }
 
-        public async Task<InstanceRecord> FireAsync(
-            Trigger trigger,
-            string contentType, string payload, Guid? lastCommitTag,
+        public async Task<Machine> FireAsync(
+            Trigger trigger, string payload, Guid? lastCommitTag,
             CancellationToken cancellationToken)
         {
             using (var dataContext = _repositoryContextFactory.OpenContext())
@@ -55,7 +53,12 @@ namespace REstate.Engine
 
                 var stateConfig = StateMappings[currentState];
 
-                var transition = stateConfig.Transitions.Single(t => t.TriggerName == trigger.TriggerName);
+                var transition = stateConfig.Transitions.SingleOrDefault(t => t.TriggerName == trigger.TriggerName);
+
+                if(transition == null)
+                {
+                    throw new InvalidOperationException($"No transition defined for state: '{currentState.StateName}' using input: '{trigger}'");
+                }
 
                 if (transition.Guard != null)
                 {
@@ -74,7 +77,7 @@ namespace REstate.Engine
                 currentState = await dataContext.Machines.SetMachineStateAsync(
                     MachineId,
                     transition.ResultantStateName, 
-                    trigger.TriggerName, 
+                    trigger, 
                     lastCommitTag ?? Guid.Parse(currentState.CommitTag), 
                     cancellationToken).ConfigureAwait(false);
 
@@ -89,7 +92,7 @@ namespace REstate.Engine
                             .BuildConnectorAsync(cancellationToken).ConfigureAwait(false);
                         
                         await entryConnector
-                            .ConstructAction(this, currentState, contentType, payload, stateConfig.OnEntry.Configuration) 
+                            .ConstructAction(this, currentState, payload, stateConfig.OnEntry.Configuration) 
                             .Invoke(cancellationToken).ConfigureAwait(false);
                     }
                     catch
@@ -98,7 +101,6 @@ namespace REstate.Engine
                         {
                             await FireAsync(
                                 new Trigger(stateConfig.OnEntry.FailureTransition.TriggerName), 
-                                contentType, 
                                 payload, 
                                 Guid.Parse(currentState.CommitTag), 
                                 cancellationToken).ConfigureAwait(false);
@@ -136,9 +138,9 @@ namespace REstate.Engine
             return false;
         }
 
-        public async Task<InstanceRecord> GetCurrentStateAsync(CancellationToken cancellationToken)
+        public async Task<Machine> GetCurrentStateAsync(CancellationToken cancellationToken)
         {
-            InstanceRecord currentState;
+            Machine currentState;
 
             using (var dataContext = _repositoryContextFactory.OpenContext())
             {

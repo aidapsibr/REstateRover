@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace REstate.Engine
 {
-    public class StateEngine
+    public class StateEngine : IStateEngine
     {
         private readonly IStateMachineFactory _stateMachineFactory;
         private readonly IRepositoryContextFactory _repositoryContextFactory;
@@ -86,14 +86,14 @@ namespace REstate.Engine
             }
         }
 
-        public async Task<IStateMachine> InstantiateMachine(Schematic schematic, IDictionary<string, string> metadata, CancellationToken cancellationToken)
+        public async Task<IStateMachine> CreateMachine(Schematic schematic, IDictionary<string, string> metadata, CancellationToken cancellationToken)
         {
             var machineId = Guid.NewGuid().ToString();
 
             using (var repositories = _repositoryContextFactory.OpenContext())
             {
                 await repositories.Machines
-                    .CreateMachineAsync(schematic.SchematicName, machineId, metadata, cancellationToken)
+                    .CreateMachineAsync(schematic, machineId, metadata, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -105,7 +105,7 @@ namespace REstate.Engine
             return machine;
         }
 
-        public async Task<string> InstantiateMachineFromStore(string schematicName, IDictionary<string, string> metadata, CancellationToken cancellationToken)
+        public async Task<string> CreateMachine(string schematicName, IDictionary<string, string> metadata, CancellationToken cancellationToken)
         {
             var machineId = Guid.NewGuid().ToString();
 
@@ -118,17 +118,9 @@ namespace REstate.Engine
 
             return machineId;
         }
-
         public async Task<IDictionary<string, string>> GetMachineMetadata(string machineId, CancellationToken cancellationToken)
         {
-            string metadata = await GetMachineMetadataString(machineId, cancellationToken);
-
-            return _stringSerializer.Deserialize<Dictionary<string, string>>(metadata);
-        }
-
-        public async Task<string> GetMachineMetadataString(string machineId, CancellationToken cancellationToken)
-        {
-            string metadata;
+            IDictionary<string, string> metadata;
 
             using (var repositories = _repositoryContextFactory.OpenContext())
             {
@@ -169,9 +161,9 @@ namespace REstate.Engine
             }
         }
 
-        public async Task<InstanceRecord> GetMachineInfoAsync(string machineId, CancellationToken cancellationToken)
+        public async Task<Machine> GetMachineInfoAsync(string machineId, CancellationToken cancellationToken)
         {
-            InstanceRecord machineInfo;
+            Machine machineInfo;
 
             using (var repositories = _repositoryContextFactory.OpenContext())
             {

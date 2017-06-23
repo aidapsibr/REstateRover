@@ -135,12 +135,9 @@ namespace REstate.IoC.TinyIoC
 
                 try
                 {
-                    TValue current;
-                    if (_Dictionary.TryGetValue(key, out current))
+                    if (_Dictionary.TryGetValue(key, out TValue current))
                     {
-                        var disposable = current as IDisposable;
-
-                        if (disposable != null)
+                        if (current is IDisposable disposable)
                             disposable.Dispose();
                     }
 
@@ -545,13 +542,12 @@ namespace REstate.IoC.TinyIoC
         /// <exception cref="System.ArgumentException"/>
         public static MethodInfo GetGenericMethod(this Type sourceType, BindingFlags bindingFlags, string methodName, Type[] genericTypes, Type[] parameterTypes)
         {
-            MethodInfo method;
             var cacheKey = new GenericMethodCacheKey(sourceType, methodName, genericTypes, parameterTypes);
 
             // Shouldn't need any additional locking
             // we don't care if we do the method info generation
             // more than once before it gets cached.
-            if (!_genericMethodCache.TryGetValue(cacheKey, out method))
+            if (!_genericMethodCache.TryGetValue(cacheKey, out MethodInfo method))
             {
                 method = GetMethod(sourceType, bindingFlags, methodName, genericTypes, parameterTypes);
                 _genericMethodCache[cacheKey] = method;
@@ -2912,10 +2908,7 @@ namespace REstate.IoC.TinyIoC
 
             public DelegateFactory(Type registerType, Func<TinyIoCContainer, NamedParameterOverloads, object> factory)
             {
-                if (factory == null)
-                    throw new ArgumentNullException("factory");
-
-                _factory = factory;
+                _factory = factory ?? throw new ArgumentNullException("factory");
 
                 this.registerType = registerType;
             }
@@ -3069,9 +3062,7 @@ namespace REstate.IoC.TinyIoC
 
             public void Dispose()
             {
-                var disposable = _instance as IDisposable;
-
-                if (disposable != null)
+                if (_instance is IDisposable disposable)
                     disposable.Dispose();
             }
         }
@@ -3148,9 +3139,7 @@ namespace REstate.IoC.TinyIoC
 
             public void Dispose()
             {
-                var disposable = _instance.Target as IDisposable;
-
-                if (disposable != null)
+                if (_instance.Target is IDisposable disposable)
                     disposable.Dispose();
             }
         }
@@ -3233,9 +3222,7 @@ namespace REstate.IoC.TinyIoC
                 if (this._Current == null)
                     return;
 
-                var disposable = this._Current as IDisposable;
-
-                if (disposable != null)
+                if (this._Current is IDisposable disposable)
                     disposable.Dispose();
             }
         }
@@ -3252,9 +3239,6 @@ namespace REstate.IoC.TinyIoC
 
             public CustomObjectLifetimeFactory(Type registerType, Type registerImplementation, ITinyIoCObjectLifetimeProvider lifetimeProvider, string errorMessage)
             {
-                if (lifetimeProvider == null)
-                    throw new ArgumentNullException("lifetimeProvider", "lifetimeProvider is null.");
-
                 if (!IsValidAssignment(registerType, registerImplementation))
                     throw new TinyIoCRegistrationTypeException(registerImplementation, "SingletonFactory");
 
@@ -3267,7 +3251,7 @@ namespace REstate.IoC.TinyIoC
 
                 this.registerType = registerType;
                 this.registerImplementation = registerImplementation;
-                _LifetimeProvider = lifetimeProvider;
+                _LifetimeProvider = lifetimeProvider ?? throw new ArgumentNullException("lifetimeProvider", "lifetimeProvider is null.");
             }
 
             public override Type CreatesType
@@ -3551,9 +3535,7 @@ namespace REstate.IoC.TinyIoC
 
         private ObjectFactoryBase GetCurrentFactory(TypeRegistration registration)
         {
-            ObjectFactoryBase current = null;
-
-            _RegisteredTypes.TryGetValue(registration, out current);
+            _RegisteredTypes.TryGetValue(registration, out ObjectFactoryBase current);
 
             return current;
         }
@@ -3597,8 +3579,7 @@ namespace REstate.IoC.TinyIoC
             Type checkType = registration.Type;
             string name = registration.Name;
 
-            ObjectFactoryBase factory;
-            if (_RegisteredTypes.TryGetValue(new TypeRegistration(checkType, name), out factory))
+            if (_RegisteredTypes.TryGetValue(new TypeRegistration(checkType, name), out ObjectFactoryBase factory))
             {
                 if (factory.AssumeConstruction)
                     return true;
@@ -3711,8 +3692,7 @@ namespace REstate.IoC.TinyIoC
             if (_Parent == null)
                 return null;
 
-            ObjectFactoryBase factory;
-            if (_Parent._RegisteredTypes.TryGetValue(registration, out factory))
+            if (_Parent._RegisteredTypes.TryGetValue(registration, out ObjectFactoryBase factory))
             {
                 return factory.GetFactoryForChildContainer(registration.Type, _Parent, this);
             }
@@ -3721,11 +3701,9 @@ namespace REstate.IoC.TinyIoC
         }
 
         private object ResolveInternal(TypeRegistration registration, NamedParameterOverloads parameters, ResolveOptions options)
-        {
-            ObjectFactoryBase factory;
-
+        { 
             // Attempt container resolution
-            if (_RegisteredTypes.TryGetValue(registration, out factory))
+            if (_RegisteredTypes.TryGetValue(registration, out ObjectFactoryBase factory))
             {
                 try
                 {
@@ -4066,8 +4044,7 @@ namespace REstate.IoC.TinyIoC
 #if USE_OBJECT_CONSTRUCTOR
         private static ObjectConstructor CreateObjectConstructionDelegateWithCache(ConstructorInfo constructor)
         {
-            ObjectConstructor objectConstructor;
-            if (_ObjectConstructorCache.TryGetValue(constructor, out objectConstructor))
+            if (_ObjectConstructorCache.TryGetValue(constructor, out ObjectConstructor objectConstructor))
                 return objectConstructor;
 
             // We could lock the cache here, but there's no real side

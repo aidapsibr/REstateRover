@@ -50,8 +50,8 @@ namespace REstate.Engine
         private static void HandleTransitions(ref List<string> lines, string sourceState, string trigger, string destination, string guardDescription)
         {
             string line = string.IsNullOrWhiteSpace(guardDescription) ?
-                string.Format(" {0} -> {1} [label=\"{2}\"];", sourceState, destination, trigger) :
-                string.Format(" {0} -> {1} [label=\"{2} [{3}]\"];", sourceState, destination, trigger, guardDescription);
+                string.Format(" \"{0}\" -> \"{1}\" [label=\"{2}\"];", sourceState, destination, trigger) :
+                string.Format(" \"{0}\" -> \"{1}\" [label=\"{2} [{3}]\"];", sourceState, destination, trigger, guardDescription);
 
             lines.Add(line);
         }

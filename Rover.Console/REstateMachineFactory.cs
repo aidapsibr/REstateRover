@@ -37,7 +37,7 @@ namespace REstate.Engine
                 {
                     StateName = serviceState.StateName,
                     ParentStateName = null,
-                    StateDescription = serviceState.Description,
+                    Description = serviceState.Description,
                     OnEntry = new EntryConnector
                     {  
                         ConnectorKey = serviceState.OnEntry.ConnectorKey,
@@ -60,7 +60,7 @@ namespace REstate.Engine
 
                 stateMappings.Add(new State(parentStateConfiguration.StateName), parentStateConfiguration);
 
-                if (!serviceState.DisableAcknowledgement)
+                if (serviceState.UseAcceptAndRejectStates)
                 {
                     // Add a transition from parent to accepting and rejecting states.
                     parentStateConfiguration.Transitions = new[]
@@ -82,7 +82,7 @@ namespace REstate.Engine
                     {
                         StateName = $"{serviceState.StateName}Accepted",
                         ParentStateName = serviceState.StateName,
-                        StateDescription = "Action was accepted for processing.",
+                        Description = "Action was accepted for processing.",
                         Transitions = new[]
                         {
                             new Transition
@@ -103,7 +103,7 @@ namespace REstate.Engine
                     {
                         StateName = $"{serviceState.StateName}Rejected",
                         ParentStateName = serviceState.StateName,
-                        StateDescription = "Action was rejected.",
+                        Description = "Action was rejected.",
                         Transitions = null // Terminal state.
                     };
 
@@ -123,7 +123,7 @@ namespace REstate.Engine
                 {
                     StateName = $"{serviceState.StateName}Failed",
                     ParentStateName = serviceState.StateName,
-                    StateDescription = "Failed to process.",
+                    Description = "Failed to process.",
                     Transitions = new[]
                     {
                         new Transition

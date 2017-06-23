@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace REstate.IoC.TinyIoC
 {
@@ -35,6 +36,17 @@ namespace REstate.IoC.TinyIoC
         }
 
         /// <summary>
+        /// Resolves all instances of a given type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>An array of all the instances.</returns>
+        public T[] ResolveAll<T>() 
+            where T : class
+        {
+            return _container.ResolveAll<T>().ToArray();
+        }
+
+        /// <summary>
         /// Registers the specified instance.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -62,6 +74,11 @@ namespace REstate.IoC.TinyIoC
                 _container.Register((tinyIoC, overloads) => resolver(this));
             else
                 _container.Register((tinyIoC, overloads) => resolver(this), name);
+        }
+
+        public void RegisterComponent(IComponent component)
+        {
+            component.Register(this);
         }
     }
 }

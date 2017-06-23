@@ -101,5 +101,16 @@ namespace REstate.Configuration.Builder
 
             return this;
         }
+
+        public Schematic ToSchematic()
+        {
+            return new Schematic
+            {
+                SchematicName = SchematicName,
+                InitialState = InitialState,
+                StateConfigurations = StateConfigurations.Select(kvp => kvp.Value.ToStateConfiguration()).ToArray(),
+                ServiceStates = ServiceStates.Select(kvp => kvp.Value).ToArray()
+            };
+        }
     }
 }

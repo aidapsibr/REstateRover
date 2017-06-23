@@ -7,9 +7,12 @@ namespace REstate.Configuration
         [Required]
         public string StateName { get; set; }
 
+        public string ParentStateName { get; set; }
+
         public string Description { get; set; }
 
-        public bool DisableAcknowledgement { get; set; }
+        [Required]
+        public bool UseAcceptAndRejectStates { get; set; }
 
         public Transition[] Transitions { get; set; }
 

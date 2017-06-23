@@ -1,11 +1,9 @@
-﻿using System;
-
-namespace REstate.IoC
+﻿namespace REstate.IoC
 {
     /// <summary>
     /// A simple container interface for plugging in DI containers.
     /// </summary>
-    public interface IComponentContainer
+    public interface IComponentContainer : IRegistrar
     {
         /// <summary>
         /// Resolves the specified type.
@@ -17,21 +15,12 @@ namespace REstate.IoC
             where T : class;
 
         /// <summary>
-        /// Registers the specified instance.
+        /// Resolves all instances of a given type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="instance">The instance.</param>
-        /// <param name="name">The name.</param>
-        void Register<T>(T instance, string name = null)
-            where T : class;
-
-        /// <summary>
-        /// Registers the specified factory method.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="resolver">The resolver.</param>
-        /// <param name="name">The name.</param>
-        void Register<T>(Func<IComponentContainer, T> resolver, string name = null)
+        /// <returns>An array of all the instances.</returns>
+        T[] ResolveAll<T>()
             where T : class;
     }
+
 }

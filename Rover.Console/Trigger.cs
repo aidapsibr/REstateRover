@@ -8,7 +8,7 @@ namespace REstate
         public Trigger(string triggerName)
         {
             if (string.IsNullOrWhiteSpace(triggerName))
-                throw new ArgumentException("Argument is null or whitespace", nameof(triggerName));
+                throw new ArgumentException("Cannot be null or whitespace", nameof(triggerName));
 
             TriggerName = triggerName;
         }
@@ -57,7 +57,6 @@ namespace REstate
         /// <returns>
         /// A hash code for the current object.
         /// </returns>
-        /// <filterpriority>2</filterpriority>
         public override int GetHashCode()
         {
             return TriggerName.GetHashCode();
@@ -71,6 +70,16 @@ namespace REstate
         public static bool operator !=(Trigger a, Trigger b)
         {
             return !(a == b);
+        }
+
+        public static implicit operator Trigger(string triggerName)
+        {
+            return new Trigger(triggerName);
+        }
+
+        public static implicit operator String(Trigger trigger)
+        {
+            return trigger.TriggerName;
         }
     }
 }

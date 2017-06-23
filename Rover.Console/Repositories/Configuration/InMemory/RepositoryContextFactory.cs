@@ -1,4 +1,6 @@
-﻿namespace REstate.Engine.Repositories.InMemory
+﻿using System;
+
+namespace REstate.Engine.Repositories.InMemory
 {
     public class InMemoryRepositoryContextFactory
         : IRepositoryContextFactory

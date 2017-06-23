@@ -12,7 +12,5 @@ namespace REstate.Engine.Services
         bool IsActionConnector { get; }
 
         bool IsGuardConnector { get; }
-
-        string ConnectorSchema { get; set; }
     }
 }

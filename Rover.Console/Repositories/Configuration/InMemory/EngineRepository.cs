@@ -10,7 +10,7 @@ namespace REstate.Engine.Repositories.InMemory
     {
         private readonly StringSerializer _stringSerializer;
         private static IDictionary<string, Schematic> Schematics { get; } = new Dictionary<string, Schematic>();
-        private static IDictionary<string, ValueTuple<InstanceRecord, IDictionary<string, string>>> Machines { get; } = new Dictionary<string, ValueTuple<InstanceRecord, IDictionary<string, string>>>();
+        private static IDictionary<string, ValueTuple<Machine, IDictionary<string, string>>> Machines { get; } = new Dictionary<string, ValueTuple<Machine, IDictionary<string, string>>>();
 
         public EngineRepository(StringSerializer stringSerializer)
         {
@@ -31,14 +31,14 @@ namespace REstate.Engine.Repositories.InMemory
 
         public Task<Schematic> RetrieveSchematicForMachineAsync(string machineId, CancellationToken cancellationToken)
         {
-            ValueTuple<InstanceRecord, IDictionary<string, string>> instanceData;
+            ValueTuple<Machine, IDictionary<string, string>> instanceData;
             try
             {
                 instanceData = Machines[machineId];
             }
             catch
             {
-                throw new InstanceDoesNotExistException();
+                throw new MachineDoesNotExistException();
             }
 
             try
@@ -49,13 +49,12 @@ namespace REstate.Engine.Repositories.InMemory
             }
             catch
             {
-                throw new DefinitionDoesNotExistException();
+                throw new SchematicDoesNotExistException();
             }
         }
 
         public Task<Schematic> CreateSchematicAsync(Schematic schematic, string forkedFrom, CancellationToken cancellationToken)
         {
-
             Schematics.Add(schematic.SchematicName, schematic);
 
             var machineRecord = Schematics[schematic.SchematicName];
@@ -70,12 +69,27 @@ namespace REstate.Engine.Repositories.InMemory
 
         public Task CreateMachineAsync(string schematicName, string machineId, IDictionary<string, string> metadata, CancellationToken cancellationToken)
         {
-            var machineRecord = Schematics[schematicName];
+            var schematic = Schematics[schematicName];
 
-            Machines.Add(machineId, ValueTuple.Create(new InstanceRecord
+            Machines.Add(machineId, (new Machine
             {
                 SchematicName = schematicName,
-                StateName = machineRecord.InitialState,
+                StateName = schematic.InitialState,
+                CommitTag = Guid.NewGuid().ToString(),
+                StateChangedDateTime = DateTime.UtcNow
+            }, metadata));
+
+            return Task.CompletedTask;
+        }
+
+        public Task CreateMachineAsync(Schematic schematic, string machineId, IDictionary<string, string> metadata, CancellationToken cancellationToken)
+        {
+            Schematics.Add(schematic.SchematicName, schematic);
+
+            Machines.Add(machineId, (new Machine
+            {
+                SchematicName = schematic.SchematicName,
+                StateName = schematic.InitialState,
                 CommitTag = Guid.NewGuid().ToString(),
                 StateChangedDateTime = DateTime.UtcNow
             }, metadata));
@@ -95,28 +109,28 @@ namespace REstate.Engine.Repositories.InMemory
             return Task.CompletedTask;
         }
 
-        public Task<InstanceRecord> GetMachineStateAsync(string machineId, CancellationToken cancellationToken)
+        public Task<Machine> GetMachineStateAsync(string machineId, CancellationToken cancellationToken)
         {
-            var instanceRecord = Machines[machineId].Item1;
+            var (machine, metadata) = Machines[machineId];
 
-            return Task.FromResult(instanceRecord);
+            return Task.FromResult(machine);
         }
 
-        public Task<InstanceRecord> SetMachineStateAsync(string machineId, string stateName, string triggerName, Guid? lastCommitTag, CancellationToken cancellationToken)
+        public Task<Machine> SetMachineStateAsync(string machineId, string stateName, string triggerName, Guid? lastCommitTag, CancellationToken cancellationToken)
         {
             return SetMachineStateAsync(machineId, stateName, triggerName, null, lastCommitTag, cancellationToken);
         }
 
-        public Task<InstanceRecord> SetMachineStateAsync(string machineId, string stateName, string triggerName, string parameterData, Guid? lastCommitTag, CancellationToken cancellationToken)
+        public Task<Machine> SetMachineStateAsync(string machineId, string stateName, string triggerName, string parameterData, Guid? lastCommitTag, CancellationToken cancellationToken)
         {
-            var instance = Machines[machineId];
+            var (machine, metadata) = Machines[machineId];
 
-            lock(instance.Item1)
+            lock(machine)
             {
-                if (lastCommitTag == null || Guid.Parse(instance.Item1.CommitTag) == lastCommitTag)
+                if (lastCommitTag == null || Guid.Parse(machine.CommitTag) == lastCommitTag)
                 {
-                    instance.Item1.StateName = stateName;
-                    instance.Item1.CommitTag = Guid.NewGuid().ToString();
+                    machine.StateName = stateName;
+                    machine.CommitTag = Guid.NewGuid().ToString();
                 }
                 else
                 {
@@ -124,14 +138,14 @@ namespace REstate.Engine.Repositories.InMemory
                 }
             }
 
-            return Task.FromResult(instance.Item1);
+            return Task.FromResult(machine);
         }
 
-        public Task<string> GetMachineMetadataAsync(string machineId, CancellationToken cancellationToken)
+        public Task<IDictionary<string, string>> GetMachineMetadataAsync(string machineId, CancellationToken cancellationToken)
         {
-            var metadata = Machines[machineId].Item2;
+            var (machine, metadata) = Machines[machineId];
 
-            return Task.FromResult(_stringSerializer.Serialize(metadata));
+            return Task.FromResult(metadata);
         }
     }
 }

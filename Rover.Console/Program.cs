@@ -1,13 +1,9 @@
-﻿using Newtonsoft.Json;
-using REstate;
+﻿using REstate;
 using REstate.Configuration;
 using REstate.Configuration.Builder;
 using REstate.Engine;
-using REstate.Engine.Repositories;
-using REstate.Engine.Repositories.InMemory;
 using REstate.Engine.Services;
-using REstate.IoC;
-using REstate.IoC.TinyIoC;
+using Rover.Console.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,174 +13,129 @@ using System.Threading.Tasks;
 
 namespace Rover.Console
 {
-    public class REstate
-    {
-        private REstate()
-        {
-            Container = new TinyIoCContainerAdapter(TinyIoCContainer.Current);
-
-            Container.Register(new StringSerializer(
-                serializer: (obj) => JsonConvert.SerializeObject(obj),
-                deserializer: (str) => JsonConvert.DeserializeObject(str)));
-
-            Container.Register<IConnectorFactoryResolver>(new DefaultConnectorFactoryResolver());
-
-            Container.Register<IRepositoryContextFactory>(c =>
-                new InMemoryRepositoryContextFactory(
-                    c.Resolve<StringSerializer>()));
-
-            Container.Register<ICartographer>(new DotGraphCartographer());
-
-            Container.Register<IStateMachineFactory>(c =>
-                new REstateMachineFactory(
-                    c.Resolve<IConnectorFactoryResolver>(),
-                    c.Resolve<IRepositoryContextFactory>(),
-                    c.Resolve<ICartographer>()));
-
-            Container.Register(c =>
-                new StateEngine(
-                    c.Resolve<IStateMachineFactory>(),
-                    c.Resolve<IRepositoryContextFactory>(),
-                    c.Resolve<StringSerializer>()));
-        }
-
-        private static IComponentContainer Container;
-
-        private static Lazy<StateEngine> EngineInstance = new Lazy<StateEngine>(() =>
-        {
-            return Container.Resolve<StateEngine>();
-        });
-
-        public static StateEngine Engine => EngineInstance.Value;
-
-        public static SchematicBuilder BuildSchematic(string schematicName) =>
-            new SchematicBuilder(schematicName);
-    }
-
-    public class RoverMatrixConnector : IConnector
-    {
-        private IDictionary<ValueTuple<int, int>, bool> _matrix;
-
-        public RoverMatrixConnector(IDictionary<ValueTuple<int, int>, bool> matrix)
-        {
-            _matrix = matrix;
-        }
-
-        public string ConnectorKey => "RoverMatrix";
-
-        public Func<CancellationToken, Task> ConstructAction(IStateMachine machineInstance, State state, string contentType, string payload, IDictionary<string, string> configuration)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Func<State, Trigger, string, CancellationToken, Task<bool>> ConstructPredicate(IStateMachine machineInstance, IDictionary<string, string> configuration) =>
-            (state, trigger, payload, cancellationToken) =>
-            {
-                string[] coordinateParts = state.StateName.Split(',');
-
-                int x = int.Parse(coordinateParts[0]);
-                int y = int.Parse(coordinateParts[1]);
-
-                string heading = coordinateParts[3];
-
-                switch (heading)
-                {
-                    case "N":
-                        y++;
-                        break;
-                    case "E":
-                        x++;
-                        break;
-                    case "S":
-                        y--;
-                        break;
-                    case "W":
-                        x--;
-                        break;
-                }
-
-                bool isValidMove = false;
-
-                try
-                {
-                    isValidMove = _matrix[(x, y)];
-                }
-                catch
-                {
-                    //Assume out of bounds.
-                }
-                
-                return Task.FromResult(isValidMove);
-            };
-    }
-
     class Program
     {
         static void Main(string[] args)
         {
-            IDictionary<ValueTuple<int, int>, bool> matrix = new Dictionary<ValueTuple<int, int>, bool>();
+            (int xBound, int yBound) = (100, 100);
 
-            // Produce cross-product of coordinates with headings.
-            var validStates = matrix
-                .Where(matrixPair => matrixPair.Value)
-                .SelectMany(
-                    matrixPair => new[] { "N", "E", "S", "W" },
-                    (matrixPair, heading) => $"{matrixPair.Key.Item1}, {matrixPair.Key.Item2}, {heading}");
+            bool[][] matrix = ConstructMatrix(xBound, yBound, seed: 203);
+
+            List<string> states = CreateStates(xBound, yBound, matrix);
 
             var initialState = "0,0,N";
 
-            var schematic = REstate
-                .BuildSchematic("Rover")
-                .WithStates(validStates, state =>
+            var schematic =
+                new SchematicBuilder("Rover")
+                .WithStates(states, s =>
                 {
-                    if (state.StateName == initialState)
-                        state.AsInitialState();
+                    if (s.StateName == initialState)
+                        s.AsInitialState();
 
-                    bool isValid;
                     int x;
                     int y;
                     string heading;
 
-                    (x, y, heading) = RotateState(state, Rotation.Clockwise);
-                    state.WithTransition("RotateClockwise", $"{x},{y},{heading}");
+                    (x, y, heading) = RotateState(s, Rotation.Clockwise);
+                    s.WithTransition("r", $"{x},{y},{heading}");
 
-                    (x, y, heading) = RotateState(state, Rotation.CounterClockwise);
-                    state.WithTransition("RotateCounterClockwise", $"{x},{y},{heading}");
+                    (x, y, heading) = RotateState(s, Rotation.CounterClockwise);
+                    s.WithTransition("l", $"{x},{y},{heading}");
 
-                    (x, y, heading) = TranslateState(state, Movement.Forward);
-                    if (matrix.TryGetValue((x, y), out isValid) && isValid)
+                    (x, y, heading) = TranslateState(s, Movement.Forward);
+                    if (x >= 0 && x <= matrix.Length - 1 && y >= 0 && y <= matrix[x].Length - 1 && matrix[x][y])
                     {
-                        state.WithTransition("MoveForward", $"{x},{y},{heading}");
+                        s.WithTransition("f", $"{x},{y},{heading}");
                     }
 
-                    (x, y, heading) = TranslateState(state, Movement.Reverse);
-                    if (matrix.TryGetValue((x, y), out isValid) && isValid)
+                    (x, y, heading) = TranslateState(s, Movement.Reverse);
+                    if (x >= 0 && x <= matrix.Length - 1 && y >= 0 && y <= matrix[x].Length - 1 && matrix[x][y])
                     {
-                        state.WithTransition("MoveBackwards", $"{x},{y},{heading}");
+                        s.WithTransition("b", $"{x},{y},{heading}");
                     }
-                });
 
-            var machine = REstate.Engine.InstantiateMachine(new Schematic
-            {
-                SchematicName = "",
-                InitialState = "",
-                StateConfigurations = new[]
-                {
-                    new StateConfiguration
+                    s.WithOnEntryConnector(new EntryConnector
                     {
-                        StateName = "",
-                        StateDescription = "",
-                        Transitions = new []
+                        ConnectorKey = "ConsoleWriter",
+                        Description = "Writes rover position to the console.",
+                        Configuration = new Dictionary<string, string>
                         {
-                            new Transition
-                            {
-                                TriggerName = "",
-                                ResultantStateName = ""
-                            }
+                            ["Format"] = "Rover moved to position and heading {0}."
                         }
-                    }
+                    });
+                })
+                .ToSchematic();
+
+            var machine = REstate.Engine.CreateMachine(schematic, null, CancellationToken.None).Result;
+
+            System.Console.WriteLine("Enter f, b, r, or l to navigate the plateau.");
+
+            while (true)
+            {
+                var input = System.Console.ReadLine().ToLowerInvariant();
+
+                if (string.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
+                    break;
+
+                if (string.IsNullOrWhiteSpace(input))
+                    continue;
+
+                try
+                {
+                    machine.FireAsync(input, null, CancellationToken.None).Wait();
                 }
-            }, null, CancellationToken.None).Result;
+                catch (InvalidOperationException invalidException)
+                {
+                    System.Console.WriteLine(invalidException.Message);
+                }
+                catch (AggregateException exception)
+                    when (exception.InnerException is InvalidOperationException invalidException)
+                {
+                    System.Console.WriteLine(invalidException.Message);
+                }
+            }
+        }
+
+        private static List<string> CreateStates(int xBound, int yBound, bool[][] matrix)
+        {
+            List<string> states = new List<string>(xBound * yBound);
+
+            string[] headings = new[] { "N", "E", "S", "W" };
+
+            for (int x = 0; x < xBound; x++)
+                for (int y = 0; y < yBound; y++)
+                {
+                    if (matrix[x][y])
+                        for (int i = 0; i < headings.Length; i++)
+                            states.Add($"{x},{y},{headings[i]}");
+
+                }
+
+            return states;
+        }
+
+        private static bool[][] ConstructMatrix(int xBound, int yBound, int numberOfObstructions = 50, int? seed = null)
+        {
+            var random = seed != null ? new Random(seed.Value) : new Random();
+
+            var obstructions = new (int, int)[numberOfObstructions];
+
+            for (int i = 0; i < numberOfObstructions; i++)
+                obstructions[i] = (random.Next(0, xBound), random.Next(0, yBound));
+
+            bool[][] matrix = new bool[xBound][];
+
+            for (int x = 0; x < xBound; x++)
+            {
+                matrix[x] = new bool[yBound];
+
+                for (int y = 0; y < yBound; y++)
+                {
+                    matrix[x][y] = !obstructions.Contains((x, y));
+                }
+            }
+
+            return matrix;
         }
 
         private static (int X, int Y, string Heading) RotateState(IStateConfigurationBuilder state, Rotation direction)
@@ -193,7 +144,7 @@ namespace Rover.Console
 
             int x = int.Parse(coordinateParts[0]);
             int y = int.Parse(coordinateParts[1]);
-            string heading = coordinateParts[3];
+            string heading = coordinateParts[2];
             switch (heading)
             {
                 case "N":
@@ -219,7 +170,7 @@ namespace Rover.Console
 
             int x = int.Parse(coordinateParts[0]);
             int y = int.Parse(coordinateParts[1]);
-            string heading = coordinateParts[3];
+            string heading = coordinateParts[2];
             switch (heading)
             {
                 case "N":

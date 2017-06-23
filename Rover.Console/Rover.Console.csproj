@@ -50,21 +50,27 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration\Builder\IServiceStateConfigurationBuilder.cs" />
     <Compile Include="Configuration\Builder\SchematicBuilder.cs" />
     <Compile Include="Configuration\EntryConnector.cs" />
     <Compile Include="Configuration\ExceptionTransition.cs" />
     <Compile Include="Configuration\GuardConnector.cs" />
-    <Compile Include="Configuration\InstanceRecord.cs" />
+    <Compile Include="Configuration\Machine.cs" />
     <Compile Include="Configuration\Builder\IStateConfigurationBuilder.cs" />
     <Compile Include="Configuration\Schematic.cs" />
     <Compile Include="Configuration\ServiceEntryConnector.cs" />
     <Compile Include="Configuration\ServiceState.cs" />
     <Compile Include="Configuration\StateConfiguration.cs" />
     <Compile Include="Configuration\Transition.cs" />
-    <Compile Include="DefinitionDoesNotExistException.cs" />
+    <Compile Include="IoC\IComponent.cs" />
+    <Compile Include="IoC\IRegistrar.cs" />
+    <Compile Include="IStateEngine.cs" />
+    <Compile Include="Repositories\Configuration\InMemory\InMemoryRepositoryComponent.cs" />
+    <Compile Include="REstate.cs" />
+    <Compile Include="SchematicDoesNotExistException.cs" />
     <Compile Include="DotGraphCartographer.cs" />
     <Compile Include="IDotGraphCartographer.cs" />
-    <Compile Include="InstanceDoesNotExistException.cs" />
+    <Compile Include="MachineDoesNotExistException.cs" />
     <Compile Include="IoC\TinyIoCContainerAdapter.cs" />
     <Compile Include="IoC\IComponentContainer.cs" />
     <Compile Include="IoC\TinyIoC.cs" />
@@ -81,11 +87,13 @@
     <Compile Include="Repositories\Configuration\ISchematicRepository.cs" />
     <Compile Include="REstateMachine.cs" />
     <Compile Include="REstateMachineFactory.cs" />
+    <Compile Include="Services\ConsoleWriterConnector.cs" />
     <Compile Include="Services\DefaultConnectorFactoryResolver.cs" />
     <Compile Include="Services\IConnector.cs" />
     <Compile Include="Services\IConnectorDecorator.cs" />
     <Compile Include="Services\IConnectorFactory.cs" />
     <Compile Include="Services\IConnectorFactoryResolver.cs" />
+    <Compile Include="Services\SingletonConnectorFactory.cs" />
     <Compile Include="State.cs" />
     <Compile Include="StateConflictException.cs" />
     <Compile Include="StateEngine.cs" />

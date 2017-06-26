@@ -1,15 +1,10 @@
-﻿using REstate;
-using REstate.Configuration;
+﻿using REstate.Configuration;
 using REstate.Configuration.Builder;
-using REstate.Engine;
-using REstate.Engine.Services;
-using Rover.Console.Services;
+using REstate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Rover.Console
 {
@@ -66,7 +61,7 @@ namespace Rover.Console
                 })
                 .ToSchematic();
 
-            var machine = REstate.Engine.CreateMachine(schematic, null, CancellationToken.None).Result;
+            var machine = REstateHost.Engine.CreateMachine(schematic, null, CancellationToken.None).Result;
 
             System.Console.WriteLine("Enter f, b, r, or l to navigate the plateau.");
 
@@ -118,7 +113,7 @@ namespace Rover.Console
         {
             var random = seed != null ? new Random(seed.Value) : new Random();
 
-            var obstructions = new (int, int)[numberOfObstructions];
+            var obstructions = new(int, int)[numberOfObstructions];
 
             for (int i = 0; i < numberOfObstructions; i++)
                 obstructions[i] = (random.Next(0, xBound), random.Next(0, yBound));

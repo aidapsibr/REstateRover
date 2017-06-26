@@ -5,10 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using REstate.Engine;
 
 namespace Rover.Console
 {
-    class Program
+    partial class Program
     {
         static void Main(string[] args)
         {
@@ -18,8 +19,38 @@ namespace Rover.Console
 
             List<string> states = CreateStates(xBound, yBound, matrix);
 
-            var initialState = "0,0,N";
+            IStateMachine machine = CreateRoverMachine(matrix, states, "0,0,N");
 
+            System.Console.WriteLine("Enter f, b, r, or l to navigate the plateau.");
+
+            while (true)
+            {
+                var input = System.Console.ReadLine().ToLowerInvariant();
+
+                if (string.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
+                    break;
+
+                if (string.IsNullOrWhiteSpace(input))
+                    continue;
+
+                try
+                {
+                    machine.FireAsync(input, null, CancellationToken.None).Wait();
+                }
+                catch (InvalidOperationException invalidException)
+                {
+                    System.Console.WriteLine(invalidException.Message);
+                }
+                catch (AggregateException exception)
+                    when (exception.InnerException is InvalidOperationException invalidException)
+                {
+                    System.Console.WriteLine(invalidException.Message);
+                }
+            }
+        }
+
+        private static IStateMachine CreateRoverMachine(bool[][] matrix, List<string> states, string initialState)
+        {
             var schematic =
                 new SchematicBuilder("Rover")
                 .WithStates(states, s =>
@@ -62,33 +93,7 @@ namespace Rover.Console
                 .ToSchematic();
 
             var machine = REstateHost.Engine.CreateMachine(schematic, null, CancellationToken.None).Result;
-
-            System.Console.WriteLine("Enter f, b, r, or l to navigate the plateau.");
-
-            while (true)
-            {
-                var input = System.Console.ReadLine().ToLowerInvariant();
-
-                if (string.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
-                    break;
-
-                if (string.IsNullOrWhiteSpace(input))
-                    continue;
-
-                try
-                {
-                    machine.FireAsync(input, null, CancellationToken.None).Wait();
-                }
-                catch (InvalidOperationException invalidException)
-                {
-                    System.Console.WriteLine(invalidException.Message);
-                }
-                catch (AggregateException exception)
-                    when (exception.InnerException is InvalidOperationException invalidException)
-                {
-                    System.Console.WriteLine(invalidException.Message);
-                }
-            }
+            return machine;
         }
 
         private static List<string> CreateStates(int xBound, int yBound, bool[][] matrix)
@@ -183,18 +188,6 @@ namespace Rover.Console
             }
 
             return (x, y, heading);
-        }
-
-        public enum Movement : int
-        {
-            Forward = 1,
-            Reverse = -1,
-        }
-
-        public enum Rotation : int
-        {
-            Clockwise = 1,
-            CounterClockwise = -1,
         }
     }
 }
